@@ -155,28 +155,30 @@ export function setupExampleWebgl2() {
         handleKey(e.code as keyof typeof keyMap, false);
     });
 
+    const v3 = twgl.v3;
+    const moveVector = v3.create();
     function render(time: number) {
         time *= 0.001;
 
         const speed = .5 * time;
 
-        const udIndex = 1;
-        const lrIndex = 2;
+        const udIndex = 2;
+        const lrIndex = 0;
 
         if (keysPressed.up) {
-            eye[udIndex] += speed;
+            moveVector[udIndex] += speed;
         }
 
         if (keysPressed.down) {
-            eye[udIndex] -= speed;
+            moveVector[udIndex] -= speed;
         }
 
         if (keysPressed.left) {
-            eye[lrIndex] -= speed;
+            moveVector[lrIndex] -= speed;
         }
 
         if (keysPressed.right) {
-            eye[lrIndex] += speed;
+            moveVector[lrIndex] += speed;
         }
 
         twgl.resizeCanvasToDisplaySize(canvas);
@@ -211,6 +213,7 @@ export function setupExampleWebgl2() {
         m4.lookAt(eye, target, up, camera);
         m4.inverse(camera, view);
         m4.multiply(projection, view, viewProjection);
+        m4.translate(viewProjection, moveVector, viewProjection);
 
         gl.uniformMatrix4fv(viewProjectionMatrixLocation, false, viewProjection);
 
