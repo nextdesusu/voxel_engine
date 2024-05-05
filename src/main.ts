@@ -1,11 +1,11 @@
 
 // import { Renderer, VoxelPass } from './render';
 // import { Camera } from './render/camera';
-import { setupExample } from './render/example';
+import { setupExampleWebgl2 } from './render/example-webgl2';
 import './style.css'
 
 function main() {
-    setupExample()
+    setupExampleWebgl2()
     // const canvas = document.querySelector("#canvas")! as HTMLCanvasElement;
 
     // const ctx = canvas.getContext('webgl2')!;
