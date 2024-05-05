@@ -29,8 +29,10 @@ void main() {
 }
 `;
 
+/**
+ * source https://stackoverflow.com/questions/38804356/webgl-instanced-rendering-setting-up-divisors
+ */
 export function setupExample() {
-
     const m4 = twgl.m4;
     const gl = document.querySelector("canvas")!.getContext("webgl")!;
     const ext = gl.getExtension("ANGLE_instanced_arrays")!;
