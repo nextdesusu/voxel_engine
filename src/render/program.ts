@@ -10,6 +10,10 @@ export class Program {
         this._gl = gl;
     }
 
+    get program() {
+        return this._program;
+    }
+
     use(gl: WebGL2RenderingContext) {
         this._gl = gl;
         gl.useProgram(this._program);
@@ -23,8 +27,14 @@ export class Program {
         return this._gl.getUniformLocation(this._program, name);
     }
 
-    get program() {
-        return this._program;
+    attributeLocator<T extends Record<string, boolean>>(input: T): Record<keyof T, number> {
+        const result: Record<keyof T, number> = {} as any;
+    
+        for (const key of Object.keys(input) as (keyof T)[]) {
+            result[key] = this.getAttributeLocation(key as string);
+        }
+    
+        return result;
     }
 }
 
@@ -53,6 +63,7 @@ function compileShader(gl: WebGL2RenderingContext, shaderSource: string, shaderT
 
     return shader;
 }
+
 /**
  * Creates a program from 2 shaders.
 */
@@ -72,7 +83,7 @@ function createProgram(gl: WebGL2RenderingContext, vertexShader: WebGLShader, fr
     gl.linkProgram(program);
 
     // Check if it linked.
-    var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+    const success = gl.getProgramParameter(program, gl.LINK_STATUS);
     if (!success) {
         // something went wrong with the link; get the error
         throw Error("program failed to link:" + gl.getProgramInfoLog(program));
