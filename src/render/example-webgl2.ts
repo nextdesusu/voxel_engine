@@ -5,7 +5,7 @@ import * as twgl from 'twgl.js';
 const vs = `#version 300 es
 
 in vec4 position;
-in vec3 translation;
+in vec3 translation; 
 in vec4 color;
 
 uniform mat4 viewProjectionMatrix;
@@ -63,9 +63,10 @@ export function setupExampleWebgl2() {
     }
 
     // make translations and colors, colors are separated by face
-    const numCubes = 1000;
+    const numCubes = 100;
     const colors: number[] = [];
     const translations = [];
+
 
     for (let cube = 0; cube < numCubes; ++cube) {
         translations.push(rp(), rp(), rp());
@@ -76,7 +77,7 @@ export function setupExampleWebgl2() {
         // now pick 4 similar colors for the faces of the cube
         // that way we can tell if the colors are correctly assigned
         // to each cube's faces.
-        const channel = r(3) | 0;  // pick a channel 0 - 2 to randomly modify
+        const channel = Math.floor(r(3));  // pick a channel 0 - 2 to randomly modify
         for (let face = 0; face < 6; ++face) {
             color[channel] = r(.7, 1);
             colors.push.apply(colors, color);
@@ -96,7 +97,7 @@ export function setupExampleWebgl2() {
         translation: translations,
     });
 
-    var faceMatrices = [
+    const faceMatrices = [
         m4.identity(),
         m4.rotationX(Math.PI / 2),
         m4.rotationX(Math.PI / -2),
@@ -107,8 +108,76 @@ export function setupExampleWebgl2() {
 
     const canvas = gl.canvas as HTMLCanvasElement;
 
+    const camera = m4.create();
+    const view = m4.create();
+    const viewProjection = m4.create();
+    const projection = m4.create();
+
+    const radius = 30;
+    const target = [0, 0, 0];
+    const up = [0, 1, 0];
+
+    const eye = [
+        Math.cos(Date.now()) * radius,
+        Math.sin(Date.now() * 0.3) * radius,
+        Math.sin(Date.now()) * radius,
+    ];
+
+    const keysPressed = {
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+    };
+
+    const keyMap = {
+        KeyS: 'down',
+        KeyW: 'up',
+        KeyA: 'left',
+        KeyD: 'right'
+    } as const;
+
+    function handleKey(code: keyof typeof keyMap, value: boolean) {
+        const key = keyMap[code];
+        if (!key) {
+            return
+        }
+
+        keysPressed[key] = value;
+    }
+
+    document.body.addEventListener('keydown', (e) => {
+        handleKey(e.code as keyof typeof keyMap, true);
+    });
+
+
+    document.body.addEventListener('keyup', (e) => {
+        handleKey(e.code as keyof typeof keyMap, false);
+    });
+
     function render(time: number) {
         time *= 0.001;
+
+        const speed = .5 * time;
+
+        const udIndex = 1;
+        const lrIndex = 2;
+
+        if (keysPressed.up) {
+            eye[udIndex] += speed;
+        }
+
+        if (keysPressed.down) {
+            eye[udIndex] -= speed;
+        }
+
+        if (keysPressed.left) {
+            eye[lrIndex] -= speed;
+        }
+
+        if (keysPressed.right) {
+            eye[lrIndex] += speed;
+        }
 
         twgl.resizeCanvasToDisplaySize(canvas);
         gl.viewport(0, 0, canvas.width, canvas.height);
@@ -118,14 +187,10 @@ export function setupExampleWebgl2() {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
 
-        // gl.bufferData(gl.ARRAY_BUFFER, 0, gl.STATIC_DRAW);
-
         gl.enableVertexAttribArray(positionLocation);
         gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers.translation);
-
-        // gl.bufferData(gl.ARRAY_BUFFER, )
 
         gl.enableVertexAttribArray(translationLocation);
         gl.vertexAttribPointer(translationLocation, 3, gl.FLOAT, false, 0, 0);
@@ -135,46 +200,36 @@ export function setupExampleWebgl2() {
 
         gl.vertexAttribDivisor(positionLocation, 0);
         gl.vertexAttribDivisor(translationLocation, 1);
-        gl.vertexAttribDivisor(colorLocation, 2);
-        // ext.vertexAttribDivisorANGLE(positionLocation, 0);
-        // ext.vertexAttribDivisorANGLE(translationLocation, 1);
-        // ext.vertexAttribDivisorANGLE(colorLocation, 1);
+        gl.vertexAttribDivisor(colorLocation, 1);
 
         gl.useProgram(program);
 
         const fov = 60;
         const aspect = canvas.clientWidth / canvas.clientHeight;
-        const projection = m4.perspective(fov * Math.PI / 180, aspect, 0.5, 100);
+        m4.perspective(fov * Math.PI / 180, aspect, 0.5, 100, projection);
 
-        const radius = 30;
-        const eye = [
-            Math.cos(time) * radius,
-            Math.sin(time * 0.3) * radius,
-            Math.sin(time) * radius,
-        ];
-        const target = [0, 0, 0];
-        const up = [0, 1, 0];
-
-        const camera = m4.lookAt(eye, target, up);
-        const view = m4.inverse(camera);
-        const viewProjection = m4.multiply(projection, view);
+        m4.lookAt(eye, target, up, camera);
+        m4.inverse(camera, view);
+        m4.multiply(projection, view, viewProjection);
 
         gl.uniformMatrix4fv(viewProjectionMatrixLocation, false, viewProjection);
 
         // 6 faces * 4 floats per color * 4 bytes per float
         const stride = 6 * 4 * 4;
         const numVertices = 6;
-        faceMatrices.forEach( (faceMatrix, ndx) => {
+
+        for (let ndx = 0; ndx < faceMatrices.length; ndx++) {
+            const faceMatrix = faceMatrices[ndx];
+
             const offset = ndx * 4 * 4;  // 4 floats per color * 4 floats
-            gl.vertexAttribPointer(
-                colorLocation, 4, gl.FLOAT, false, stride, offset);
+            gl.vertexAttribPointer(colorLocation, 4, gl.FLOAT, false, stride, offset);
             gl.uniformMatrix4fv(localMatrixLocation, false, faceMatrix);
 
             gl.drawArraysInstanced(gl.TRIANGLES, 0, numVertices, numCubes);
-            // ext.drawArraysInstancedANGLE(gl.TRIANGLES, 0, numVertices, numCubes);
-        });
+        }
 
         requestAnimationFrame(render);
     }
+
     requestAnimationFrame(render);
 }
