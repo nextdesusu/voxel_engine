@@ -147,6 +147,7 @@ export function setupExampleWebgl2() {
     }
 
     document.body.addEventListener('keydown', (e) => {
+        console.log('code', e.keyCode);
         handleKey(e.code as keyof typeof keyMap, true);
     });
 
@@ -157,29 +158,20 @@ export function setupExampleWebgl2() {
 
     const v3 = twgl.v3;
     const moveVector = v3.create();
-    function render(time: number) {
-        time *= 0.001;
+    let elev = 0;
+    let ang = 0;
+    let roll = 0;
 
-        const speed = .5 * time;
+    const speed = 1;
+    const turnSpeed = 90;
 
-        const udIndex = 2;
-        const lrIndex = 0;
 
-        if (keysPressed.up) {
-            moveVector[udIndex] += speed;
-        }
 
-        if (keysPressed.down) {
-            moveVector[udIndex] -= speed;
-        }
-
-        if (keysPressed.left) {
-            moveVector[lrIndex] -= speed;
-        }
-
-        if (keysPressed.right) {
-            moveVector[lrIndex] += speed;
-        }
+    let prev = 0;
+    function render(rawTime: number) {
+        const time = rawTime * 0.001;
+        const delta = time - prev;
+        prev = time;
 
         twgl.resizeCanvasToDisplaySize(canvas);
         gl.viewport(0, 0, canvas.width, canvas.height);
@@ -210,10 +202,15 @@ export function setupExampleWebgl2() {
         const aspect = canvas.clientWidth / canvas.clientHeight;
         m4.perspective(fov * Math.PI / 180, aspect, 0.5, 100, projection);
 
-        m4.lookAt(eye, target, up, camera);
+        m4.identity(camera);
+        m4.translate(camera, moveVector, camera);
+
+        m4.rotateX(camera, degToRad(elev), camera);
+        m4.rotateY(camera, degToRad(-ang), camera);
+        m4.rotateZ(camera, degToRad(roll), camera);
+
         m4.inverse(camera, view);
         m4.multiply(projection, view, viewProjection);
-        m4.translate(viewProjection, moveVector, viewProjection);
 
         gl.uniformMatrix4fv(viewProjectionMatrixLocation, false, viewProjection);
 
@@ -231,8 +228,24 @@ export function setupExampleWebgl2() {
             gl.drawArraysInstanced(gl.TRIANGLES, 0, numVertices, numCubes);
         }
 
+        if (keysPressed.up || keysPressed.down) {
+            const direction = keysPressed.up ? 1 : -1;
+            moveVector[0] -= camera[8] * delta * speed * direction;
+            moveVector[1] -= camera[9] * delta * speed * direction;
+            moveVector[2] -= camera[10] * delta * speed * direction;
+        }
+
+        if (keysPressed.left || keysPressed.right) {
+            const direction = keysPressed.left ? 1 : -1;
+            ang += delta * turnSpeed * direction;
+          }
+
         requestAnimationFrame(render);
     }
 
     requestAnimationFrame(render);
+}
+
+function degToRad(d: number) {
+    return d * Math.PI / 180;
 }
